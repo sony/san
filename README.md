@@ -1,7 +1,10 @@
-# Slicing Adversarial Network (SAN)
+# Slicing Adversarial Network (SAN) [ICLR 2024]
 
 This repository contains the official PyTorch implementation of **"SAN: Inducing Metrizability of GAN with Discriminative Normalized Linear Layer"** (*[arXiv 2301.12811](https://arxiv.org/abs/2301.12811)*).
 Please cite [[1](#citation)] in your work when using this code in your experiments.
+
+### [[Project Page]](https://ytakida.github.io/san/)
+
 
 ## Requirements
 This repository builds on the codebase of [StyleGAN-XL](https://github.com/autonomousvision/stylegan-xl). Please refer to the repository.
@@ -24,7 +27,16 @@ python dataset_tool_for_imagenet.py --source=<path_to_imagenet>/ILSVRC --dest=./
 ```
 
 ## Training
-Training code will be released.
+We trained our StyleSAN-XL model as follows:
+```
+python train.py --outdir=./training-runs/imagenet --cfg=stylegan3-t --data=./data/imagenet256.zip \
+  --gpus=8 --batch=256 --mirror=1 --snap 10 --batch-gpu 8 --kimg 11000 --syn_layers 11 \
+  --superres --cls_weight 8.0 --up_factor 2 --head_layers 7 \
+  --path_stem https://s3.eu-central-1.amazonaws.com/avg-projects/stylegan_xl/models/imagenet128.pkl \
+  --cond True
+```
+
+This repository builds on the codebase of [StyleGAN-XL](https://github.com/autonomousvision/stylegan-xl). Please refer to the repository for more details.
 
 ## Pretrained Model
 We provide the following pretrained checkpoint:
