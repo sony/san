@@ -170,6 +170,13 @@ def training_loop(
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
+    for _, discriminator in D.discriminators.items():
+        if D_kwargs.backbone_kwargs.cond:
+            for _, disc in discriminator.mini_discs.items():
+                disc.embed.normalize_weight()
+        else:
+            for _, disc in discriminator.mini_discs.items():
+                disc.last_layer.normalize_weight()
 
     # Check for existing checkpoint
     ckpt_pkl = None
@@ -352,6 +359,14 @@ def training_loop(
                     for param, grad in zip(params, grads):
                         param.grad = grad.reshape(param.shape)
                 phase.opt.step()
+            if phase.name in ['Dmain', 'Dboth', 'Dreg']:
+                for _, discriminator in D.discriminators.items():
+                    if D_kwargs.backbone_kwargs.cond:
+                        for _, disc in discriminator.mini_discs.items():
+                            disc.embed.normalize_weight()
+                    else:
+                        for _, disc in discriminator.mini_discs.items():
+                            disc.last_layer.normalize_weight()
 
             # Phase done.
             if phase.end_event is not None:

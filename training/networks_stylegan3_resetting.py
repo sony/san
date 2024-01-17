@@ -599,6 +599,8 @@ class SuperresGenerator(torch.nn.Module):
         path_stem,
         head_layers,
         up_factor,
+        conv_kernel,
+        use_radial_filters,
         **synthesis_kwargs,
     ):
         assert up_factor in [2, 4, 8, 16], "Supported up_factors: [2, 4, 8, 16]"
@@ -624,8 +626,8 @@ class SuperresGenerator(torch.nn.Module):
         self.last_stopband_rel = G_stem.synthesis.last_stopband_rel
         self.num_critical = G_stem.synthesis.num_critical
         self.num_fp16_res = G_stem.synthesis.num_fp16_res
-        self.conv_kernel = G_stem.synthesis.conv_kernel
-        self.use_radial_filters = G_stem.synthesis.use_radial_filters
+        self.conv_kernel = conv_kernel
+        self.use_radial_filters = use_radial_filters
 
         # cut off critically sampled layers
         for name in reversed(self.synthesis.layer_names):

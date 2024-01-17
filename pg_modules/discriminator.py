@@ -7,6 +7,7 @@ import pickle
 
 from training.diffaug import DiffAugment
 from training.networks_stylegan2 import FullyConnectedLayer
+from pg_modules.san_modules import SANConv2d, SANEmbedding
 from pg_modules.blocks import conv2d, DownBlock, DownBlockPatch
 from pg_modules.projector import F_RandomProj
 from feature_networks.constants import VITS
@@ -49,11 +50,11 @@ class SingleDisc(nn.Module):
             layers.append(DB(nfc[start_sz], nfc[start_sz//2]))
             start_sz = start_sz // 2
 
-        layers.append(conv2d(nfc[end_sz], 1, 4, 1, 0, bias=False))
         self.main = nn.Sequential(*layers)
+        self.last_layer = SANConv2d(nfc[end_sz], 1, 4, 1, 0, bias=False)
 
-    def forward(self, x, c):
-        return self.main(x)
+    def forward(self, x, c, flg_train=False):
+        return self.last_layer(self.main(x), flg_train=flg_train)
 
 class SingleDiscCond(nn.Module):
     def __init__(self, nc=None, ndf=None, start_sz=256, end_sz=8, head=None, patch=False, c_dim=1000, cmap_dim=64, rand_embedding=False):
@@ -97,23 +98,23 @@ class SingleDiscCond(nn.Module):
 
         self.cls = conv2d(nfc[end_sz], self.cmap_dim, 4, 1, 0, bias=False)
 
-        # Pretrained Embeddings
-        embed_path = 'in_embeddings/tf_efficientnet_lite0.pkl'
-        with open(embed_path, 'rb') as f:
-            self.embed = pickle.Unpickler(f).load()['embed']
-        print(f'loaded imagenet embeddings from {embed_path}: {self.embed}')
-        if rand_embedding:
-            self.embed.__init__(num_embeddings=self.embed.num_embeddings, embedding_dim=self.embed.embedding_dim)
-            print(f'initialized embeddings with random weights')
+        self.embed = SANEmbedding(num_embeddings=c_dim, embedding_dim=self.cmap_dim)
 
-        self.embed_proj = FullyConnectedLayer(self.embed.embedding_dim, self.cmap_dim, activation='lrelu')
-
-    def forward(self, x, c):
+    def forward(self, x, c, flg_train=False):
         h = self.main(x)
         out = self.cls(h)
 
-        cmap = self.embed_proj(self.embed(c.argmax(1))).unsqueeze(-1).unsqueeze(-1)
-        out = (out * cmap).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
+        if flg_train:
+            cmap = self.embed(c.argmax(1), flg_train=True)
+            cmap_fun, cmap_dir = cmap
+            cmap_fun = cmap_fun.unsqueeze(-1).unsqueeze(-1)
+            cmap_dir = cmap_dir.unsqueeze(-1).unsqueeze(-1)
+            out_fun = (out * cmap_fun).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
+            out_dir = (out.detach() * cmap_dir).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
+            out = [out_fun, out_dir]
+        else:
+            cmap = self.embed(c.argmax(1)).unsqueeze(-1).unsqueeze(-1)
+            out = (out * cmap).sum(dim=1, keepdim=True) * (1 / np.sqrt(self.cmap_dim))
 
         return out
 
@@ -144,12 +145,24 @@ class MultiScaleD(nn.Module):
 
         self.mini_discs = nn.ModuleDict(mini_discs)
 
-    def forward(self, features, c, rec=False):
-        all_logits = []
-        for k, disc in self.mini_discs.items():
-            all_logits.append(disc(features[k], c).view(features[k].size(0), -1))
+    def forward(self, features, c, rec=False, flg_train=False):
+        if flg_train:
+            all_logits_fun = []
+            all_logits_dir = []
+            for k, disc in self.mini_discs.items():
+                logit_fun, logit_dir = disc(features[k], c, flg_train=True)
+                all_logits_fun.append(logit_fun.view(features[k].size(0), -1))
+                all_logits_dir.append(logit_dir.view(features[k].size(0), -1))
 
-        all_logits = torch.cat(all_logits, dim=1)
+            all_logits_fun = torch.cat(all_logits_fun, dim=1)
+            all_logits_dir = torch.cat(all_logits_dir, dim=1)
+            all_logits = [all_logits_fun, all_logits_dir]
+        else:
+            all_logits = []
+            for k, disc in self.mini_discs.items():
+                all_logits.append(disc(features[k], c).view(features[k].size(0), -1))
+
+            all_logits = torch.cat(all_logits, dim=1)
         return all_logits
 
 class ProjectedDiscriminator(torch.nn.Module):
@@ -192,8 +205,12 @@ class ProjectedDiscriminator(torch.nn.Module):
     def eval(self):
         return self.train(False)
 
-    def forward(self, x, c):
-        logits = []
+    def forward(self, x, c, flg_train=False):
+        if flg_train:
+            logits_fun = []
+            logits_dir = []
+        else:
+            logits = []
 
         for bb_name, feat in self.feature_networks.items():
 
@@ -212,6 +229,14 @@ class ProjectedDiscriminator(torch.nn.Module):
 
             # forward pass
             features = feat(x_n)
-            logits += self.discriminators[bb_name](features, c)
+            if flg_train:
+                logit_fun, logit_dir = self.discriminators[bb_name](features, c, flg_train=True)
+                logits_fun += logit_fun
+                logits_dir += logit_dir
+            else:
+                logits += self.discriminators[bb_name](features, c)
+
+        if flg_train:
+            logits = [logits_fun, logits_dir]
 
         return logits
