@@ -3,7 +3,7 @@
 This tutorial will give a way to implement Slicing Adversarial Networks (SAN), a universal approach, just like spectral normalization, to enhance GAN [1] performance. SAN serves as a drop-in replacement for GAN, since almost any GAN can be easily converted to SAN with a couple of small changes to a discriminator. More specifically, all you need for converting GANs into the SAN counterparts is modifying the last linear layer of a discriminator and the discriminator objective function. The code snippets in this blog are from [simple-san](https://github.com/sony/san/tree/main/simple-san), which offers a simple implementation of SAN. 
 
 
-**For those already familiar with the background of GAN/SAN and those seeking a quick understanding of SAN implementation, please jump to section 5. Additionally, you can easily try SAN training by using [simple-san](https://github.com/sony/san/tree/main/simple-san)!**
+**For those already familiar with the background of GAN/SAN and those seeking a quick understanding of SAN implementation, please [jump to section 5](#sanify). Additionally, you can easily try SAN training by using [simple-san](https://github.com/sony/san/tree/main/simple-san)!**
 
 
 *Yuhta Takida, Masaaki Imaizumi, Takashi Shibuya, Chieh-Hsin Lai, Toshimitsu Uesaka, Naoki Murata, Yuki Mitsufuji. SAN: Inducing Metrizability of GAN with Discriminative Normalized Linear Layer. International Conference on Learning Representations (ICLR), 2024.*
@@ -199,6 +199,8 @@ def compute_loss_gan(disc, loss_type):
 ```
 </details>
 
+
+<a id="sanify"></a>
 
 ## 5. SAN-ify: How is a SAN implemented based on GAN code?
 
