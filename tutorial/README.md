@@ -8,7 +8,8 @@ This tutorial will give a way to implement Slicing Adversarial Networks (SAN), a
 
 *Yuhta Takida, Masaaki Imaizumi, Takashi Shibuya, Chieh-Hsin Lai, Toshimitsu Uesaka, Naoki Murata, Yuki Mitsufuji. SAN: Inducing Metrizability of GAN with Discriminative Normalized Linear Layer. International Conference on Learning Representations (ICLR), 2024.*
 
-![Generated samples from SAN (StyleSAN-XL) trained on ImageNet](assets/imagenet256.png)
+![](assets/imagenet256.png)
+
 $\uparrow$ Generated samples from SAN (StyleSAN-XL) trained on ImageNet
 
 ## 1. Introduction: What is a SAN? Its relation to a GAN
