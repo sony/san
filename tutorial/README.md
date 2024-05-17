@@ -23,19 +23,19 @@ The idea of GAN, a two-player game between a generator and a discriminator, was 
 
 Now, let’s take a brief look at the basic formulation of GANs as a warm-up for SAN. Denote an image sample and a latent variable as $x \in X$ and $z \in Z$, respectively. The generator, which is parameterized by a neural network $g_{\theta}: Z\to X$, aims to generate samples that closely resemble those from the ground truth distribution. In contrast, the discriminator, denoted as $f_{\phi}:X\to\mathbb{R}$, takes either real data samples or generated samples as inputs and is trained to distinguish between them using scalars. The optimization problems for the generator and discriminator are basically formulated as:
 
-$$\min_{\theta}\mathcal{J}\_{\text{GAN}}(\theta;f\_{\phi})\quad\text{and}\quad\max_{\phi}\mathcal{V}\_{\text{GAN}}(\phi;\theta)$$
+$$\min_{\theta}\mathcal{J}\_{\text{GAN}}(\theta;f\_{\phi})\quad\text{and}\quad\max_{\phi}\mathcal{V}\_{\text{GAN}}(\phi;\theta).$$
 
 Although several specific optimization objectives have been proposed so far, we take Hinge GAN [2] as an example because of the simplicity and its ubiquity in the current GANs:
 
 $$\mathcal{J}\_{\text{GAN}}(\theta; f_\phi) = -\mathbb{E}\_{p_{\text{prior}}(z)}[f_{\phi}(g_{\theta}(z))]\quad\text{and}$$
 
-$$\mathcal{V}\_{\text{GAN}}(\phi; g_\theta) =\mathbb{E}\_{p_{\text{data}}(x)}[\min(0, -1+f_{\phi}(x))]+\mathbb{E}\_{p_{\text{prior}}(z)}[\min(0,-1-f_{\phi}(g_{\theta}(z))]$$
+$$\mathcal{V}\_{\text{GAN}}(\phi; g_\theta) =\mathbb{E}\_{p_{\text{data}}(x)}[\min(0, -1+f_{\phi}(x))]+\mathbb{E}\_{p_{\text{prior}}(z)}[\min(0,-1-f_{\phi}(g_{\theta}(z))].$$
 
 Despite the power and effectiveness of GAN, taming GAN in our development remains a challenge. One particular challenge is the issue of training instability. This instability often leads to a phenomenon where the learned model generates only a subset of the modes present in the dataset, resulting in less diversity in the generated samples. This problem is a major concern in GAN and has been extensively investigated. However, due to the complexity of the minimax optimization, understanding and preventing such issues still pose significant challenges.
 
 ## 3. SAN: Boosting GAN with simple modifications
 
-We briefly review SAN from the methodology perspective[^1]. Converting GAN into SAN requires only small modifications to the discriminator: 1) [a slight alteration to the discriminator architecture](https://github.com/sony/san/blob/main/simple-san/models/discriminator.py#L38), and 2) [adjustments to the discriminator loss](https://github.com/sony/san/blob/main/simple-san/train.py#L68) in accordance with the architectural modification.
+We briefly review SAN from the methodology perspective. Converting GAN into SAN requires only small modifications to the discriminator: 1) [a slight alteration to the discriminator architecture](https://github.com/sony/san/blob/main/simple-san/models/discriminator.py#L38), and 2) [adjustments to the discriminator loss](https://github.com/sony/san/blob/main/simple-san/train.py#L68) in accordance with the architectural modification.
 
 We first decompose the discriminator $\phi$ into the last linear layer $w$ and the remaining neural part $\varphi$, i.e., $\phi=\{w, \varphi\}$. This decomposition can be formulated in an inner-product form as $f_{\phi}:=\tilde{f}\_{\varphi}^{w}=\langle w,h_{\varphi}\rangle$, where $h_{\varphi}:X\to \mathbb{R}^{D}$ can be interpreted as extracting $D$-dimensional features and $w\in\mathbb{R}^{D}$ projects them into scalars. Furthermore, we normalize $w$ with respect to its norm, resulting in a direction vector $\omega\in\mathbb{S}^{D-1}$. Finally, we obtain the following form of the discriminator:
 
@@ -54,8 +54,9 @@ where $(\cdot)^-$ indicates a stop-gradient operator.
 It is important to note that the SAN-ification only occurs at the discriminator. Thus, the objective for the generator remains the same as that of the original GAN, i.e., $\mathcal{J}\_{\text{GAN}}(\theta; \tilde{f}_{\omega,\varphi})$.
 
 
-[^1]: For SAN-ification for general variants of GAN including Saturating/Non-saturating GAN and least-square GAN, please refer to our paper and the following related paper.  
-*Takashi Shibuya, Yuhta Takida, Yuki Mitsufuji. BigVSAN: Enhancing GAN-based Neural Vocoders with Slicing Adversarial Network.  International Conference on Acoustics, Speech, and Signal Processing (ICASSP), 2024.*
+> [!NOTE]
+> For SAN-ification for general variants of GAN including Saturating/Non-saturating GAN and least-square GAN, please refer to our paper and the following related paper.  
+> *Takashi Shibuya, Yuhta Takida, Yuki Mitsufuji. BigVSAN: Enhancing GAN-based Neural Vocoders with Slicing Adversarial Network.  International Conference on Acoustics, Speech, and Signal Processing (ICASSP), 2024.*
 
 
 ## 4. Warm-up: Base GAN code
@@ -235,7 +236,7 @@ class SanDiscriminator(BaseDiscriminator):
 ```
 </details>
 
-As the next and final modification, we change the discriminator objective function from $\mathcal{V}\_{\text{H-GAN}}$ to $\mathcal{V}\_{\text{H-GAN}}$. The modified objective function can be implemented as follows[^2]:
+As the next and final modification, we change the discriminator objective function from $\mathcal{V}\_{\text{H-GAN}}$ to $\mathcal{V}\_{\text{H-GAN}}$. The modified objective function can be implemented as follows:
 
 <details>
 <summary>Step 2: Modified Discriminator Loss</summary>
@@ -257,7 +258,8 @@ def compute_loss_san(disc, loss_type):
 
 That’s all for SAN-ifying our base GAN! "As seen so far, essentially around ten lines of modifications to the original GAN code are sufficient for that.
 
-[^2]: In ideal cases, the inner-product form of the discriminator $\langle\omega,h(x)\rangle$ maintains the same representational power as the original discriminator $\langle w,h(x)\rangle$. However, the simply normazing $w$ into $\omega$ may significantly alter the training dynamics, potentially leading to performance deterioration. For instance, the discriminator often undergoes carefully designed weight initialization specific to the original neural network. In GAN models tailored for specific tasks, additional objective functions may be employed depending on the application. To mitigate such drastic changes, we can decompose the original discriminator as $\langle w/\|w\|_2,\|w\|_2\cdot h(x)\rangle$, where $w/\|w\|_2$ can be considered as $\omega$ since it lies on the hypersphere $\mathbb{S}^{d-1}$. This decomposition does not alter the discriminator outputs. Instead, we can construct our SAN discriminator based on this decomposition by using $\|w\|_2\cdot h(x)$ for `h_feature`.
+> [!NOTE]
+> In ideal cases, the inner-product form of the discriminator $\langle\omega,h(x)\rangle$ maintains the same representational power as the original discriminator $\langle w,h(x)\rangle$. However, the simply normazing $w$ into $\omega$ may significantly alter the training dynamics, potentially leading to performance deterioration. For instance, the discriminator often undergoes carefully designed weight initialization specific to the original neural network. In GAN models tailored for specific tasks, additional objective functions may be employed depending on the application. To mitigate such drastic changes, we can decompose the original discriminator as $\langle w/\|w\|_2,\|w\|_2\cdot h(x)\rangle$, where $w/\|w\|_2$ can be considered as $\omega$ since it lies on the hypersphere $\mathbb{S}^{d-1}$. This decomposition does not alter the discriminator outputs. Instead, we can construct our SAN discriminator based on this decomposition by using $\|w\|_2\cdot h(x)$ for `h_feature`.
 
 
 ## 6. Conclusion: Where to go from here?
