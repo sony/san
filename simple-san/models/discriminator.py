@@ -47,8 +47,8 @@ class SanDiscriminator(BaseDiscriminator):
         scale = torch.norm(weights, dim=1).unsqueeze(1)
         h_feature = h_feature * scale # For keep the scale
         if flg_train: # for discriminator training
-            out_fun = (h_feature.detach() * direction).sum(dim=1)
-            out_dir = (h_feature * direction.detach()).sum(dim=1)
+            out_fun = (h_feature * direction.detach()).sum(dim=1)
+            out_dir = (h_feature.detach() * direction).sum(dim=1)
             out = dict(fun=out_fun, dir=out_dir)
         else: # for generator training or inference
             out = (h_feature * direction).sum(dim=1)
