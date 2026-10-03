@@ -11,8 +11,9 @@ def normalize_second_moment(x, dim=1, eps=1e-8):
 
 
 class DummyMapping(nn.Module):
-    def __init__(self):
+    def __init__(self, z_dim=256):
         super().__init__()
+        self.register_buffer('w_avg', torch.zeros([z_dim]))
 
     def forward(self, z, c=None, **kwargs):
         return z.unsqueeze(1)  # to fit the StyleGAN API
@@ -171,7 +172,7 @@ class Generator(nn.Module):
         self.img_channels = img_channels
 
         # Mapping and Synthesis Networks
-        self.mapping = DummyMapping()  # to fit the StyleGAN API
+        self.mapping = DummyMapping(z_dim=z_dim)  # to fit the StyleGAN API
         Synthesis = FastganSynthesisCond if cond else FastganSynthesis
         self.synthesis = Synthesis(ngf=ngf, z_dim=z_dim, nc=img_channels, img_resolution=img_resolution, **synthesis_kwargs)
 
